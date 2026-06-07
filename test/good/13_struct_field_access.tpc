@@ -1,0 +1,13 @@
+struct Point {
+    int x;
+    int y;
+};
+
+int main(void) {
+    struct Point p;
+    p.x = 10;
+    p.y = 20;
+    putint(p.x + p.y);
+    putchar(10);
+    return 0;
+}

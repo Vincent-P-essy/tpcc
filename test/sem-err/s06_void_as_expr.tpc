@@ -1,0 +1,10 @@
+/* Erreur sémantique: fonction void utilisée comme expression */
+void doNothing(void) {
+    return;
+}
+
+int main(void) {
+    int x;
+    x = doNothing();
+    return x;
+}

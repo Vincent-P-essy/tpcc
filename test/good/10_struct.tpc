@@ -1,0 +1,10 @@
+/* Test: déclaration de structures */
+struct Point {
+    int x;
+    int y;
+};
+
+int main(void) {
+    struct Point p;
+    return 0;
+}

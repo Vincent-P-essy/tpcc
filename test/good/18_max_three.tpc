@@ -1,0 +1,13 @@
+int max3(int a, int b, int c) {
+    int m;
+    m = a;
+    if (b > m) m = b;
+    if (c > m) m = c;
+    return m;
+}
+
+int main(void) {
+    putint(max3(4, 9, 2));
+    putchar(10);
+    return 0;
+}

@@ -1,0 +1,5 @@
+/* Erreur sémantique: type struct non déclaré */
+int main(void) {
+    struct Fantome f;
+    return 0;
+}

@@ -1,0 +1,7 @@
+/* Erreur sémantique: double déclaration de fonction */
+int foo(void) { return 1; }
+int foo(void) { return 2; }
+
+int main(void) {
+    return foo();
+}

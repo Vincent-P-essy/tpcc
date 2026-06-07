@@ -1,0 +1,4 @@
+/* Test: main simple */
+int main(void) {
+    return 0;
+}

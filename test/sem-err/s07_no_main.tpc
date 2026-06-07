@@ -1,0 +1,4 @@
+/* Erreur sémantique: pas de fonction main */
+int foo(void) {
+    return 42;
+}

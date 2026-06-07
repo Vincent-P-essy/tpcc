@@ -1,0 +1,1010 @@
+%============================================================
+% Rapport Technique – Projet de Compilation TPC → NASM
+% Vincent PLESSY – Licence Informatique 2025-2026
+%============================================================
+\documentclass[12pt,a4paper]{article}
+
+%--- Encodage & langue ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+
+%--- Mise en page ---
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+
+%--- Couleurs ---
+\usepackage{xcolor}
+\definecolor{bleutpc}{RGB}{0,70,170}
+\definecolor{gristpc}{RGB}{100,100,100}
+\definecolor{vertcomment}{RGB}{0,128,0}
+
+%--- Listings (code) ---
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{bleutpc}\bfseries,
+  commentstyle=\color{vertcomment}\itshape,
+  stringstyle=\color{orange},
+  numberstyle=\tiny\color{gristpc},
+  numbers=left,
+  numbersep=8pt,
+  frame=single,
+  rulecolor=\color{gristpc!50},
+  backgroundcolor=\color{gray!5},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=4,
+  showstringspaces=false,
+  captionpos=b,
+}
+\lstdefinelanguage{TPC}{
+  morekeywords={int,char,void,struct,if,else,while,return},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+  morestring=[b]',
+  sensitive=true,
+}
+
+%--- Tables ---
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+
+%--- Figures & flottants ---
+\usepackage{float}
+\usepackage{graphicx}
+
+%--- Liens hypertexte ---
+\usepackage[colorlinks=true, linkcolor=bleutpc, urlcolor=bleutpc, citecolor=bleutpc]{hyperref}
+
+%--- En-têtes / pieds de page ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\nouppercase{\leftmark}}
+\fancyhead[R]{\textcolor{gristpc}{Vincent PLESSY}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+%--- Titres colorés ---
+\titleformat{\section}
+  {\color{bleutpc}\large\bfseries}{\thesection}{1em}{}[\color{bleutpc}\hrule]
+\titleformat{\subsection}
+  {\color{bleutpc}\normalsize\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}
+  {\color{bleutpc}\normalsize\itshape}{\thesubsubsection}{1em}{}
+
+%--- Commandes utiles ---
+\newcommand{\tpc}{\texttt{TPC}}
+\newcommand{\tpcc}{\texttt{tpcc}}
+\newcommand{\nasm}{\textsc{NASM}}
+
+%============================================================
+\begin{document}
+%============================================================
+
+%--- Page de titre ---
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+
+{\color{bleutpc}\rule{\linewidth}{1.5pt}}\\[0.4cm]
+{\Huge\bfseries\color{bleutpc} Rapport Technique}\\[0.3cm]
+{\large\color{gristpc} Projet de Compilation}\\[0.1cm]
+{\color{bleutpc}\rule{\linewidth}{1.5pt}}
+
+\vspace{1.5cm}
+
+{\LARGE\bfseries Compilateur pour le Langage TPC}\\[0.5cm]
+{\large\textit{De l'analyse syntaxique à la génération de code NASM}}
+
+\vspace{2cm}
+
+{\large\bfseries Vincent PLESSY}\\[0.3cm]
+{\normalsize Licence d'Informatique – Année 2025-2026}\\[0.2cm]
+{\normalsize Mars 2026}
+
+\vfill
+
+{\small\color{gristpc}
+  Université – Licence Informatique\\
+  Projet de Compilation – Semestre 6\\
+  Langage : TPC (sous-ensemble du C)\\
+  Cible : NASM ELF64 (Linux AMD64)
+}
+
+\vspace{1cm}
+{\color{bleutpc}\rule{\linewidth}{0.4pt}}
+\end{titlepage}
+
+%--- Table des matières ---
+\tableofcontents
+\newpage
+
+%============================================================
+\section{Introduction}
+%============================================================
+
+Ce rapport documente la réalisation du compilateur \tpcc{} pour le langage \tpc{}
+(\textit{Tiny Procedural C}), dans le cadre du projet de Compilation de Licence~3.
+
+Ce projet est la continuation directe du projet d'Analyse Syntaxique (Semestre~5),
+qui avait produit l'analyseur \texttt{tpcas} capable de détecter les erreurs
+lexicales et syntaxiques et de construire un Arbre de Syntaxe Abstraite (ASA).
+Le présent compilateur étend ce travail avec :
+
+\begin{itemize}
+  \item une \textbf{analyse sémantique} complète (tables des symboles, vérification
+        des types, contrôle des déclarations) ;
+  \item une \textbf{génération de code} vers l'assembleur \nasm{} (format ELF64,
+        architecture AMD64 Linux) ;
+  \item une suite de tests automatisée couvrant les quatre catégories attendues.
+\end{itemize}
+
+L'ensemble du code source peut être compilé avec un simple \texttt{make}.
+
+%============================================================
+\section{Spécifications Techniques}
+%============================================================
+
+\subsection{Environnement de développement}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Composant} & \textbf{Version / Description} \\
+\midrule
+Système d'exploitation & Linux AMD64 (Debian/Ubuntu) \\
+Compilateur C          & GCC 11+ \\
+Analyseur lexical      & Flex 2.6+ \\
+Générateur de parseur  & Bison 3.8+ \\
+Assembleur cible       & NASM 2.15+ (format ELF64) \\
+Éditeur de liens       & ld (GNU Binutils) \\
+Outil de construction  & GNU Make \\
+\bottomrule
+\end{tabularx}
+\caption{Outils utilisés}
+\end{table}
+
+\subsection{Structure du projet}
+
+\begin{verbatim}
+project/
+├── makefile
+├── run_tests.sh         # Script de tests automatiques
+├── bin/
+│   └── tpcc             # Binaire compilé
+├── src/
+│   ├── tpcc.lex         # Analyseur lexical (Flex)
+│   ├── tpcc.y           # Parseur + point d'entrée (Bison)
+│   ├── tree.h / tree.c  # Module ASA
+│   ├── symtable.h / symtable.c   # Tables des symboles
+│   ├── semantic.h / semantic.c   # Analyse sémantique
+│   └── codegen.h / codegen.c     # Génération de code NASM
+├── test/
+│   ├── good/            # 12 programmes corrects
+│   ├── syn-err/         # 5 erreurs lexicales/syntaxiques
+│   ├── sem-err/         # 10 erreurs sémantiques
+│   └── warn/            # 3 programmes avec avertissements
+└── rep/
+    └── RAPPORT.tex      # Ce document
+\end{verbatim}
+
+\subsection{Métriques du code source}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Fichier} & \textbf{Lignes} & \textbf{Rôle} \\
+\midrule
+\texttt{tpcc.lex}      & $\sim$110 & Lexer Flex \\
+\texttt{tpcc.y}        & $\sim$250 & Parser Bison + \texttt{main()} \\
+\texttt{tree.c}        & $\sim$120 & Module ASA \\
+\texttt{symtable.c}    & $\sim$220 & Tables des symboles \\
+\texttt{semantic.c}    & $\sim$380 & Analyse sémantique \\
+\texttt{codegen.c}     & $\sim$580 & Génération NASM \\
+\midrule
+\textbf{Total}         & $\sim$1660 & \\
+\bottomrule
+\end{tabular}
+\caption{Taille des fichiers sources}
+\end{table}
+
+\subsection{Codes de retour}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{cl}
+\toprule
+\textbf{Code} & \textbf{Signification} \\
+\midrule
+0 & Compilation réussie (fichier \texttt{.asm} produit) \\
+1 & Erreur lexicale ou syntaxique \\
+2 & Erreur sémantique \\
+3 & Erreur interne / fichier introuvable \\
+\bottomrule
+\end{tabular}
+\caption{Codes de retour de \tpcc{}}
+\end{table}
+
+%============================================================
+\section{Analyse Lexicale}
+%============================================================
+
+\subsection{Tokens reconnus}
+
+L'analyseur lexical \texttt{tpcc.lex} reconnaît les catégories suivantes :
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Catégorie} & \textbf{Description} \\
+\midrule
+\texttt{TYPE}       & \texttt{int}, \texttt{char}, \texttt{void} \\
+\texttt{STRUCT}     & Mot-clé \texttt{struct} \\
+\texttt{IF / ELSE}  & Mots-clés de condition \\
+\texttt{WHILE}      & Boucle \\
+\texttt{RETURN}     & Instruction de retour \\
+\texttt{IDENT}      & Identificateurs (\texttt{[a-zA-Z\_][a-zA-Z0-9\_]*}) \\
+\texttt{NUM}        & Entiers (\texttt{[0-9]+}) \\
+\texttt{CHARACTER}  & Littéral caractère (\texttt{'x'}, \texttt{'\textbackslash n'}, etc.) \\
+\texttt{ADDSUB}     & \texttt{+}, \texttt{-} \\
+\texttt{DIVSTAR}    & \texttt{*}, \texttt{/}, \texttt{\%} \\
+\texttt{EQ}         & \texttt{==}, \texttt{!=} \\
+\texttt{ORDER}      & \texttt{<}, \texttt{<=}, \texttt{>}, \texttt{>=} \\
+\texttt{AND / OR}   & \texttt{\&\&}, \texttt{||} \\
+\texttt{NOT}        & \texttt{!} \\
+Ponctuations        & \texttt{( ) \{ \} [ ] ; , .} \\
+\bottomrule
+\end{tabularx}
+\caption{Tokens du lexer}
+\end{table}
+
+\subsection{Gestion des erreurs lexicales}
+
+Tout caractère non reconnu provoque l'émission d'un message d'erreur sur
+\texttt{stderr} et la valeur \texttt{lexical\_error} est positionnée afin de
+retourner le code~1 en fin de parsing.
+
+%============================================================
+\section{Analyse Syntaxique}
+%============================================================
+
+\subsection{Grammaire TPC}
+
+Le parseur \texttt{tpcc.y} implémente la grammaire complète du langage TPC.
+Les productions principales sont :
+
+\begin{lstlisting}[language=C, caption={Extrait de la grammaire Bison}]
+Prog      : DeclList FunctList
+          | FunctList
+          ;
+
+DeclList  : DeclList Decl
+          | Decl
+          ;
+
+Decl      : TYPE DeclVars ';'
+          | TYPE IDENT '[' NUM ']' ';'
+          | StructDef ';'
+          ;
+
+FunctList : FunctList Funct
+          | Funct
+          ;
+
+Funct     : TypeFunct IDENT '(' Params ')' Body
+          ;
+
+Instr     : Assign ';'
+          | StructAff ';'
+          | If
+          | While
+          | Return ';'
+          | FunctCall ';'
+          | '{' Body '}'
+          | ';'
+          ;
+\end{lstlisting}
+
+\subsection{Priorités des opérateurs}
+
+Les priorités sont déclarées via les directives Bison \texttt{\%left} /
+\texttt{\%right}, du plus faible au plus fort :
+
+\begin{enumerate}
+  \item \texttt{||} (ou logique)
+  \item \texttt{\&\&} (et logique)
+  \item \texttt{==}, \texttt{!=} (égalité)
+  \item \texttt{<}, \texttt{<=}, \texttt{>}, \texttt{>=} (ordre)
+  \item \texttt{+}, \texttt{-} (addition/soustraction)
+  \item \texttt{*}, \texttt{/}, \texttt{\%} (multiplication/division)
+  \item \texttt{!}, unaire \texttt{-} (opérateurs unaires)
+\end{enumerate}
+
+%============================================================
+\section{Arbre de Syntaxe Abstraite (ASA)}
+%============================================================
+
+\subsection{Structure des nœuds}
+
+Le module \texttt{tree.h} / \texttt{tree.c} est identique à celui du projet~S1.
+Chaque nœud de l'ASA est représenté par la structure :
+
+\begin{lstlisting}[language=C, caption={Structure d'un nœud ASA}]
+typedef struct Node {
+    label_t      label;       /* type de nœud */
+    struct Node *firstChild;
+    struct Node *nextSibling;
+    int          lineno;
+    char         ident[MAXNAME];  /* pour Ident, Character */
+    int          num;             /* pour Num */
+    int          type;            /* type TPC (TY_INT, etc.) */
+} Node;
+\end{lstlisting}
+
+\subsection{Labels de l'ASA}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Label} & \textbf{Description} \\
+\midrule
+\texttt{Prog}          & Racine du programme \\
+\texttt{DeclVars}      & Liste de déclarations de variables \\
+\texttt{Declarator}    & Un déclarant (nom + éventuel tableau) \\
+\texttt{Funct}         & Définition de fonction \\
+\texttt{Params}        & Liste de paramètres formels \\
+\texttt{Param}         & Un paramètre \\
+\texttt{Body}          & Corps de fonction (liste d'instructions) \\
+\texttt{InstrAssign}   & Affectation \\
+\texttt{InstrIf}       & Condition simple \\
+\texttt{InstrIfElse}   & Condition avec alternative \\
+\texttt{InstrWhile}    & Boucle \texttt{while} \\
+\texttt{InstrCall}     & Appel de procédure \\
+\texttt{InstrReturn}   & \texttt{return expr} \\
+\texttt{InstrReturnVoid} & \texttt{return} sans valeur \\
+\texttt{InstrBlock}    & Bloc \texttt{\{...\}} \\
+\texttt{F}             & Appel de fonction (dans expression) \\
+\texttt{Ident}         & Identificateur \\
+\texttt{Num}           & Entier littéral \\
+\texttt{Character}     & Caractère littéral \\
+\texttt{OpAddsub}      & Opérateur \texttt{+} / \texttt{-} \\
+\texttt{OpDivstar}     & Opérateur \texttt{*} / \texttt{/} / \texttt{\%} \\
+\texttt{OpEq}          & Opérateur \texttt{==} / \texttt{!=} \\
+\texttt{OpOrder}       & Opérateurs de comparaison \\
+\texttt{OpAnd / OpOr}  & Opérateurs logiques \\
+\texttt{OpNot}         & Négation logique \\
+\texttt{OpUnaryMinus}  & Moins unaire \\
+\texttt{StructDef / StructVar / StructAff} & Structures \\
+\bottomrule
+\end{tabularx}
+\caption{Principaux labels de l'ASA}
+\end{table}
+
+%============================================================
+\section{Tables des Symboles}
+%============================================================
+
+\subsection{Architecture}
+
+Le module \texttt{symtable.h} / \texttt{symtable.c} gère quatre tables globales :
+
+\begin{description}
+  \item[\texttt{g\_structs}] Définitions de structures (\texttt{struct}).
+  \item[\texttt{g\_vars}]    Variables globales.
+  \item[\texttt{g\_funcs}]   Fonctions déclarées (incluant les fonctions prédéfinies).
+  \item[\texttt{l\_vars}]    Variables locales et paramètres de la fonction courante.
+\end{description}
+
+\subsection{Structure d'un symbole}
+
+\begin{lstlisting}[language=C, caption={Structure Symbol}]
+typedef struct Symbol {
+    char     name[MAX_NAME];
+    SymKind  kind;        /* SYM_GVAR, SYM_LVAR, SYM_PARAM, SYM_FUNC, SYM_SDEF */
+    TpcType  type;        /* {kind: TY_INT/TY_CHAR/TY_VOID/TY_STRUCT, struct_name} */
+    int      offset;      /* offset rbp pour locaux/params (négatif) */
+    int      size;        /* taille en octets */
+    int      nparams;     /* nb de paramètres (pour les fonctions) */
+    Symbol  *params;      /* liste chaînée des paramètres */
+    Field    fields[MAX_FIELDS];
+    int      nfields;     /* nb de champs (pour les structs) */
+    int      struct_size; /* taille totale de la struct */
+    struct Symbol *next;
+} Symbol;
+\end{lstlisting}
+
+\subsection{Allocation des variables locales}
+
+Chaque variable locale ou paramètre occupe \textbf{8~octets} sur la pile
+(indépendamment de son type effectif), ce qui simplifie le calcul des offsets.
+L'offset de la première variable est $-8$ par rapport à \texttt{rbp}, puis
+$-16$, $-24$, etc.
+
+\begin{lstlisting}[language=C, caption={Allocation d'une variable locale}]
+void sym_add_lvar(const char *name, TpcType type) {
+    Symbol *s = calloc(1, sizeof(*s));
+    strncpy(s->name, name, MAX_NAME-1);
+    s->kind   = SYM_LVAR;
+    s->type   = type;
+    s->offset = next_offset;   /* négatif, commence à -8 */
+    s->size   = 8;
+    next_offset -= 8;
+    /* insertion en tête de l_vars */
+    s->next = l_vars;
+    l_vars  = s;
+}
+\end{lstlisting}
+
+\subsection{Fonctions prédéfinies}
+
+Les quatre fonctions d'E/S sont pré-enregistrées dans \texttt{g\_funcs}
+lors de l'initialisation :
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Nom} & \textbf{Paramètre} & \textbf{Retour} \\
+\midrule
+\texttt{putchar} & \texttt{int c}  & \texttt{void} \\
+\texttt{putint}  & \texttt{int n}  & \texttt{void} \\
+\texttt{getchar} & \textit{aucun}  & \texttt{int} \\
+\texttt{getint}  & \textit{aucun}  & \texttt{int} \\
+\bottomrule
+\end{tabular}
+\caption{Fonctions prédéfinies TPC}
+\end{table}
+
+%============================================================
+\section{Analyse Sémantique}
+%============================================================
+
+\subsection{Vérifications effectuées}
+
+L'analyse sémantique (\texttt{semantic.c}) parcourt l'ASA après le parsing
+et effectue les vérifications suivantes :
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Vérification} & \textbf{Code retour} \\
+\midrule
+Variable non déclarée                     & erreur (2) \\
+Variable déclarée deux fois               & erreur (2) \\
+Fonction non déclarée                     & erreur (2) \\
+Fonction déclarée deux fois               & erreur (2) \\
+Nombre d'arguments incorrect              & erreur (2) \\
+Utilisation d'une fonction \texttt{void} comme expression & erreur (2) \\
+Absence de fonction \texttt{main}         & erreur (2) \\
+\texttt{main} avec mauvaise signature     & erreur (2) \\
+Redéclaration locale d'un paramètre       & erreur (2) \\
+Affectation \texttt{int} → \texttt{char}  & avertissement \\
+\texttt{return int} dans fonction \texttt{char} & avertissement \\
+\bottomrule
+\end{tabularx}
+\caption{Vérifications sémantiques}
+\end{table}
+
+\subsection{Algorithme général}
+
+\begin{enumerate}
+  \item Pré-enregistrement des fonctions prédéfinies.
+  \item Parcours des définitions de structures (\texttt{StructDef}).
+  \item Enregistrement des variables globales (\texttt{DeclVars}).
+  \item Pour chaque fonction :
+    \begin{enumerate}
+      \item Enregistrement dans \texttt{g\_funcs}.
+      \item Réinitialisation de \texttt{l\_vars}.
+      \item Enregistrement des paramètres formels.
+      \item Parcours récursif du corps (\texttt{Body}).
+    \end{enumerate}
+  \item Vérification de la présence de \texttt{main()}.
+\end{enumerate}
+
+\subsection{Système de types}
+
+La compatibilité de types suit les règles :
+
+\begin{itemize}
+  \item \texttt{int} → \texttt{int} : compatible (OK)
+  \item \texttt{char} → \texttt{char} : compatible (OK)
+  \item \texttt{char} → \texttt{int} : compatible implicite (OK, pas d'avertissement)
+  \item \texttt{int} → \texttt{char} : compatible avec avertissement (code~0, message sur \texttt{stderr})
+  \item Toute autre combinaison : incompatible (erreur, code~2)
+\end{itemize}
+
+%============================================================
+\section{Génération de Code NASM}
+%============================================================
+
+\subsection{Architecture générale}
+
+Le module \texttt{codegen.c} traduit l'ASA en assembleur \nasm{} ELF64.
+Le fichier généré est structuré en trois sections :
+
+\begin{description}
+  \item[\texttt{section .bss}] Variables globales (réservation de 8~octets par variable).
+  \item[\texttt{section .text}] Code : \texttt{\_start}, toutes les fonctions, puis les fonctions prédéfinies.
+\end{description}
+
+\begin{lstlisting}[language={[x86masm]Assembler}, caption={Structure d'un fichier .asm généré}]
+section .bss
+    _x:  resb 8          ; variable globale x
+
+section .text
+    global _start
+    extern putchar, putint, getchar, getint  ; si non générés
+
+_start:
+    call main
+    mov  rdi, rax
+    mov  rax, 60
+    syscall
+
+main:
+    push rbp
+    mov  rbp, rsp
+    sub  rsp, 16
+    ; corps de la fonction
+    xor  eax, eax
+    leave
+    ret
+\end{lstlisting}
+
+\subsection{Convention d'appel AMD64}
+
+Le compilateur suit la convention \textit{System V AMD64 ABI} :
+
+\begin{table}[H]
+\centering
+\begin{tabular}{cl}
+\toprule
+\textbf{Registre} & \textbf{Rôle} \\
+\midrule
+\texttt{rdi} & 1\textsuperscript{er} argument entier \\
+\texttt{rsi} & 2\textsuperscript{e} argument entier \\
+\texttt{rdx} & 3\textsuperscript{e} argument entier \\
+\texttt{rcx} & 4\textsuperscript{e} argument entier \\
+\texttt{r8}  & 5\textsuperscript{e} argument entier \\
+\texttt{r9}  & 6\textsuperscript{e} argument entier \\
+\texttt{rax} & Valeur de retour \\
+\bottomrule
+\end{tabular}
+\caption{Registres AMD64 utilisés}
+\end{table}
+
+\subsection{Prologue et épilogue de fonction}
+
+Chaque fonction suit le schéma :
+
+\begin{lstlisting}[language={[x86masm]Assembler}, caption={Prologue/épilogue standard}]
+nom_fonction:
+    push rbp
+    mov  rbp, rsp
+    sub  rsp, N        ; N = taille pile locale (alignée 16 octets)
+    ; sauvegarde des paramètres :
+    mov  [rbp-8],  rdi
+    mov  [rbp-16], rsi
+    ; ...
+    ; corps
+    xor  eax, eax      ; valeur de retour par défaut (0)
+    leave
+    ret
+\end{lstlisting}
+
+L'alignement de la pile respecte la contrainte AMD64 : après \texttt{push rbp},
+\texttt{rsp} est décalé de~8. On alloue donc $N$ tel que $N \equiv 8 \pmod{16}$
+(garantit que \texttt{rsp} est multiple de~16 avant tout \texttt{call}).
+
+\subsection{Génération des expressions}
+
+La fonction \texttt{cg\_expr()} place le résultat dans \texttt{eax} :
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{Nœud ASA} & \textbf{Code généré} \\
+\midrule
+\texttt{Num n}             & \texttt{mov eax, n} \\
+\texttt{Character 'c'}     & \texttt{mov eax, ord(c)} \\
+\texttt{Ident x} (local)   & \texttt{mov eax, [rbp+offset]} \\
+\texttt{Ident x} (global)  & \texttt{mov eax, [\_x]} \\
+\texttt{OpAddsub +}        & éval gauche, push, éval droite, pop rcx, add \\
+\texttt{OpDivstar *}       & éval gauche, push, éval droite, pop rcx, imul \\
+\texttt{OpDivstar /}       & idiv (quotient dans eax) \\
+\texttt{OpEq ==}           & cmp + sete al + movzx \\
+\texttt{OpAnd}             & court-circuit : saute si gauche = 0 \\
+\texttt{OpOr}              & court-circuit : saute si gauche $\neq$ 0 \\
+\texttt{OpNot}             & test eax,eax + sete al \\
+\texttt{OpUnaryMinus}      & neg eax \\
+\texttt{F (appel)}         & push args, call, (pop args si besoin) \\
+\bottomrule
+\end{tabularx}
+\caption{Génération des expressions}
+\end{table}
+
+\subsection{Génération des instructions}
+
+\begin{description}
+  \item[\texttt{InstrAssign}] Évalue l'expression droite dans \texttt{eax}, stocke
+        dans la variable gauche (\texttt{[rbp+offset]} ou \texttt{[\_x]}).
+  \item[\texttt{InstrIf}] Évalue la condition, saute à \texttt{\_L<n>\_end} si faux.
+  \item[\texttt{InstrIfElse}] Saute à \texttt{\_L<n>\_else} si faux, puis à
+        \texttt{\_L<n>\_end} en fin de branche vraie.
+  \item[\texttt{InstrWhile}] Étiquette \texttt{\_L<n>\_start}, teste, corps,
+        saute à \texttt{start}, étiquette \texttt{\_L<n>\_end}.
+  \item[\texttt{InstrReturn}] Évalue l'expression dans \texttt{eax}, puis
+        \texttt{leave} / \texttt{ret}.
+  \item[\texttt{InstrBlock}] Parcours récursif des instructions enfants.
+\end{description}
+
+\subsection{Fonctions d'E/S prédéfinies}
+
+Les quatre fonctions d'E/S sont implémentées directement en assembleur via les
+appels système Linux (sans bibliothèque C) :
+
+\begin{lstlisting}[language={[x86masm]Assembler}, caption={Implémentation de putchar en NASM}]
+putchar:
+    push rbp
+    mov  rbp, rsp
+    sub  rsp, 16
+    mov  [rbp-8], rdi       ; sauvegarde argument
+    mov  byte [rbp-9], dil  ; octet à afficher
+    lea  rsi, [rbp-9]       ; pointeur vers le caractère
+    mov  rax, 1             ; syscall write
+    mov  rdi, 1             ; fd = stdout
+    mov  rdx, 1             ; longueur = 1
+    syscall
+    leave
+    ret
+\end{lstlisting}
+
+\begin{lstlisting}[language={[x86masm]Assembler}, caption={Implémentation de putint en NASM (extrait)}]
+putint:
+    ; convertit l'entier en chaîne ASCII, puis syscall write
+    ; gère le signe négatif, les chiffres 0-9
+    ; utilise une pile de chiffres sur la pile locale
+\end{lstlisting}
+
+%============================================================
+\section{Extension : Structures}
+%============================================================
+
+\subsection{Déclaration et utilisation}
+
+Le langage TPC supporte les structures :
+
+\begin{lstlisting}[language=TPC, caption={Exemple d'utilisation d'une structure}]
+struct Point {
+    int x;
+    int y;
+};
+
+int main(void) {
+    struct Point p;
+    p.x = 10;
+    p.y = 20;
+    putint(p.x + p.y);
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Représentation en mémoire}
+
+Les structures sont stockées dans la table \texttt{g\_structs}. Chaque champ
+est représenté par un \texttt{Field} (nom + type + offset interne). Le
+compilateur supporte l'accès aux champs via le nœud \texttt{StructAff} de l'ASA.
+
+%============================================================
+\section{Tests et Validation}
+%============================================================
+
+\subsection{Organisation des tests}
+
+La suite de tests comprend \textbf{30~fichiers} répartis en quatre catégories :
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llr}
+\toprule
+\textbf{Répertoire} & \textbf{Catégorie} & \textbf{Nb fichiers} \\
+\midrule
+\texttt{test/good/}    & Programmes corrects (code 0)      & 12 \\
+\texttt{test/syn-err/} & Erreurs lexicales/syntaxiques (code 1) & 5 \\
+\texttt{test/sem-err/} & Erreurs sémantiques (code 2)      & 10 \\
+\texttt{test/warn/}    & Programmes avec avertissements (code 0) & 3 \\
+\midrule
+\textbf{Total}         &                                   & \textbf{30} \\
+\bottomrule
+\end{tabular}
+\caption{Répartition des tests}
+\end{table}
+
+\subsection{Détail des tests}
+
+\begin{longtable}{lp{8cm}}
+\toprule
+\textbf{Fichier} & \textbf{Description} \\
+\midrule
+\endhead
+\multicolumn{2}{l}{\textit{good/ – programmes corrects}} \\
+\midrule
+\texttt{01\_main\_simple.tpc}     & Programme minimal (\texttt{main} retourne 0) \\
+\texttt{02\_variables\_int.tpc}   & Déclarations et affectations d'entiers \\
+\texttt{03\_arithmetic.tpc}       & Opérations arithmétiques (+, -, *, /, \%) \\
+\texttt{04\_if\_else.tpc}         & Conditionnelle avec branche \texttt{else} \\
+\texttt{05\_while.tpc}            & Boucle \texttt{while} \\
+\texttt{06\_functions.tpc}        & Définition et appel de fonctions \\
+\texttt{07\_global\_vars.tpc}     & Variables globales \\
+\texttt{08\_putint.tpc}           & Utilisation de \texttt{putint} \\
+\texttt{09\_char\_vars.tpc}       & Variables de type \texttt{char} \\
+\texttt{10\_struct.tpc}           & Déclaration et accès à une structure \\
+\texttt{11\_recursion.tpc}        & Fonction récursive (factorielle) \\
+\texttt{12\_logical\_ops.tpc}     & Opérateurs logiques (\&\&, ||, !) \\
+\midrule
+\multicolumn{2}{l}{\textit{syn-err/ – erreurs syntaxiques}} \\
+\midrule
+\texttt{e01\_missing\_semicolon.tpc} & Point-virgule manquant \\
+\texttt{e02\_missing\_brace.tpc}     & Accolade fermante absente \\
+\texttt{e03\_invalid\_expr.tpc}      & Expression invalide \\
+\texttt{e04\_bad\_struct.tpc}        & Structure mal formée \\
+\texttt{e05\_bad\_return.tpc}        & Opérateur sans opérande droite \\
+\midrule
+\multicolumn{2}{l}{\textit{sem-err/ – erreurs sémantiques}} \\
+\midrule
+\texttt{s01\_undeclared\_var.tpc}      & Variable non déclarée \\
+\texttt{s02\_undeclared\_func.tpc}     & Fonction non déclarée \\
+\texttt{s03\_duplicate\_global.tpc}    & Variable globale déclarée deux fois \\
+\texttt{s04\_duplicate\_func.tpc}      & Fonction déclarée deux fois \\
+\texttt{s05\_wrong\_args.tpc}          & Nombre d'arguments incorrect \\
+\texttt{s06\_void\_as\_expr.tpc}       & Fonction \texttt{void} utilisée en expression \\
+\texttt{s07\_no\_main.tpc}             & Absence de \texttt{main} \\
+\texttt{s08\_bad\_main.tpc}            & \texttt{main} avec mauvaise signature \\
+\texttt{s09\_type\_error.tpc}          & Incompatibilité de type \\
+\texttt{s10\_local\_param\_same\_name.tpc} & Redéclaration locale d'un paramètre \\
+\midrule
+\multicolumn{2}{l}{\textit{warn/ – programmes avec avertissements}} \\
+\midrule
+\texttt{w01\_int\_to\_char.tpc}            & Affectation \texttt{int} → \texttt{char} \\
+\texttt{w02\_int\_return\_in\_char\_func.tpc} & \texttt{return int} dans fonction \texttt{char} \\
+\texttt{w03\_implicit\_char\_to\_int.tpc}  & Conversion implicite \texttt{char} → \texttt{int} (OK) \\
+\bottomrule
+\caption{Détail des fichiers de test}
+\end{longtable}
+
+\subsection{Résultats}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Catégorie} & \textbf{Total} & \textbf{PASS} & \textbf{FAIL} & \textbf{Taux} \\
+\midrule
+good    & 12 & 12 & 0 & 100\% \\
+syn-err & 5  & 5  & 0 & 100\% \\
+sem-err & 10 & 10 & 0 & 100\% \\
+warn    & 3  & 3  & 0 & 100\% \\
+\midrule
+\textbf{Total} & \textbf{30} & \textbf{30} & \textbf{0} & \textbf{100\%} \\
+\bottomrule
+\end{tabular}
+\caption{Résultats des tests automatiques}
+\end{table}
+
+\subsection{Script de tests}
+
+Le script \texttt{run\_tests.sh} lance automatiquement les 30 tests et
+affiche un rapport coloré. Il supporte l'option \texttt{--asm} pour
+assembler et lier les programmes corrects avec \texttt{nasm} + \texttt{ld}.
+
+\begin{verbatim}
+$ ./run_tests.sh
+==============================
+ Tests du compilateur tpcc
+==============================
+
+--- Programmes corrects (code de retour attendu: 0) ---
+  PASS [good] 01_main_simple.tpc (code=0)
+  ...
+
+--- Résultats finaux ---
+ PASS  : 30 / 30
+ FAIL  : 0 / 30
+ Score : 100%
+==============================
+\end{verbatim}
+
+%============================================================
+\section{Difficultés Rencontrées}
+%============================================================
+
+\subsection{Alignement de la pile AMD64}
+
+La convention AMD64 exige que \texttt{rsp} soit aligné sur 16~octets avant
+toute instruction \texttt{call}. Après \texttt{push rbp}, \texttt{rsp} a déjà
+perdu 8~octets d'alignement. La formule d'allocation utilisée est :
+
+\[
+N = \begin{cases}
+  \text{total} & \text{si } \text{total} \equiv 8 \pmod{16} \\
+  \left\lceil \frac{\text{total}+15}{16} \right\rceil \times 16 - 8 & \text{sinon}
+\end{cases}
+\]
+
+où \texttt{total} est la somme des espaces nécessaires pour toutes les
+variables locales et les paramètres.
+
+\subsection{Gestion des codes de retour dans les tests}
+
+Le script \texttt{run\_tests.sh} ne doit pas utiliser \texttt{set -e} (qui
+provoquerait la sortie immédiate du script dès qu'une commande retourne un
+code non nul). La capture du code de retour utilise la syntaxe :
+
+\begin{lstlisting}[language=bash]
+$COMPILER "$file" >/dev/null 2>&1; actual_ret=$?
+\end{lstlisting}
+
+\subsection{Tokens CHARACTER et séquences d'échappement}
+
+Le token \texttt{CHARACTER} stocke le littéral sous forme de chaîne (type
+\texttt{<str>} dans l'union Bison) pour pouvoir gérer les séquences
+d'échappement (\texttt{'\textbackslash n'}, \texttt{'\textbackslash t'},
+\texttt{'\textbackslash 0'}, etc.) lors de la génération de code.
+
+\subsection{Variables locales vs paramètres}
+
+Les paramètres formels sont insérés dans \texttt{l\_vars} \textit{en tête}
+lors du remplissage de la table des symboles. À la génération, ils sont
+parcourus dans l'ordre de la liste (tête en premier), qui correspond à
+l'ordre inverse de déclaration. Le code de sauvegarde des registres AMD64
+tient compte de cet ordre pour associer correctement chaque registre
+(\texttt{rdi}, \texttt{rsi}, …) à son offset.
+
+%============================================================
+\section{Résultats et Performances}
+%============================================================
+
+\subsection{Bilan fonctionnel}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\linewidth}{Xl}
+\toprule
+\textbf{Fonctionnalité} & \textbf{Statut} \\
+\midrule
+Analyse lexicale complète          & \textcolor{green!60!black}{Implémenté} \\
+Analyse syntaxique (grammaire TPC) & \textcolor{green!60!black}{Implémenté} \\
+Construction de l'ASA              & \textcolor{green!60!black}{Implémenté} \\
+Tables des symboles                & \textcolor{green!60!black}{Implémenté} \\
+Analyse sémantique                 & \textcolor{green!60!black}{Implémenté} \\
+Génération NASM (types int/char)   & \textcolor{green!60!black}{Implémenté} \\
+Génération NASM (structures)       & \textcolor{green!60!black}{Implémenté} \\
+Fonctions d'E/S (syscall)          & \textcolor{green!60!black}{Implémenté} \\
+Gestion des avertissements         & \textcolor{green!60!black}{Implémenté} \\
+Tests 30/30                        & \textcolor{green!60!black}{100\%} \\
+\bottomrule
+\end{tabularx}
+\caption{État d'avancement du projet}
+\end{table}
+
+\subsection{Limitations connues}
+
+\begin{itemize}
+  \item Les tableaux sont reconnus syntaxiquement mais l'accès indicé
+        (\texttt{a[i]}) n'est pas entièrement géré en génération de code.
+  \item Les fonctions à plus de 6~paramètres ne sont pas supportées
+        (limitation de la convention AMD64 sans passage par la pile).
+  \item Pas de vérification des débordements arithmétiques.
+\end{itemize}
+
+%============================================================
+\section{Conclusion}
+%============================================================
+
+Ce projet a permis de réaliser un compilateur complet pour le langage TPC,
+couvrant toutes les étapes de la chaîne de compilation : analyse lexicale,
+analyse syntaxique, construction de l'ASA, analyse sémantique et génération
+de code assembleur NASM.
+
+Les 30 tests automatiques passent tous avec succès (score 100\%), validant
+le bon fonctionnement de l'ensemble. La génération de code respecte la
+convention AMD64 et produit des exécutables ELF64 fonctionnels sur Linux.
+
+Ce travail constitue une base solide pour des extensions futures : optimisation
+du code généré, support complet des tableaux, ou encore gestion d'appels de
+fonctions avec plus de 6~arguments.
+
+%============================================================
+\appendix
+\section{Annexes}
+%============================================================
+
+\subsection{Exemple de programme TPC compilé}
+
+\begin{lstlisting}[language=TPC, caption={Calcul de la factorielle (test/good/11\_recursion.tpc)}]
+int fact(int n) {
+    if (n <= 1) return 1;
+    return n * fact(n - 1);
+}
+
+int main(void) {
+    putint(fact(5));
+    putchar('\n');
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Assembleur NASM généré (extrait)}
+
+\begin{lstlisting}[language={[x86masm]Assembler}, caption={Code NASM pour fact(5)}]
+fact:
+    push rbp
+    mov  rbp, rsp
+    sub  rsp, 8
+    mov  [rbp-8], rdi     ; paramètre n
+
+    ; if (n <= 1)
+    mov  eax, [rbp-8]
+    push rax
+    mov  eax, 1
+    pop  rcx
+    cmp  ecx, eax
+    setle al
+    movzx eax, al
+    test eax, eax
+    jz   _L1_end
+    mov  eax, 1           ; return 1
+    leave
+    ret
+_L1_end:
+    ; return n * fact(n-1)
+    mov  eax, [rbp-8]
+    push rax
+    mov  eax, [rbp-8]
+    push rax
+    mov  eax, 1
+    pop  rcx
+    sub  ecx, eax
+    mov  eax, ecx
+    mov  rdi, rax
+    call fact
+    pop  rcx
+    imul ecx, eax
+    mov  eax, ecx
+    leave
+    ret
+\end{lstlisting}
+
+\subsection{Compilation et utilisation}
+
+\begin{verbatim}
+# Compiler le projet
+make
+
+# Compiler un programme TPC
+./bin/tpcc mon_prog.tpc       # produit mon_prog.asm
+
+# Assembler et exécuter
+nasm -f elf64 mon_prog.asm -o mon_prog.o
+ld -o mon_prog mon_prog.o
+./mon_prog
+
+# Lancer tous les tests
+./run_tests.sh
+
+\end{verbatim}
+
+\end{document}

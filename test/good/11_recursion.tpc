@@ -1,0 +1,14 @@
+/* Test: récursion */
+int fact(int n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * fact(n - 1);
+}
+
+int main(void) {
+    int r;
+    r = fact(5);
+    putint(r);
+    return 0;
+}

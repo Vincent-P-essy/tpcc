@@ -1,0 +1,8 @@
+/* Avertissement: affectation int → char */
+int main(void) {
+    char c;
+    c = 97;
+    putchar(c);
+    putchar('\n');
+    return 0;
+}

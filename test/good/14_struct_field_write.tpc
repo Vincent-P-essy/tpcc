@@ -1,0 +1,14 @@
+struct Counter {
+    int val;
+};
+
+int main(void) {
+    struct Counter c;
+    c.val = 0;
+    c.val = c.val + 1;
+    c.val = c.val + 1;
+    c.val = c.val + 1;
+    putint(c.val);
+    putchar(10);
+    return 0;
+}

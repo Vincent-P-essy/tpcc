@@ -1,0 +1,22 @@
+# Binaires et objets générés
+bin/tpcc
+obj/*.o
+obj/lex.yy.c
+obj/tpcc.tab.c
+obj/tpcc.tab.h
+
+# Fichiers assembleur générés par les tests
+test/**/*.asm
+test/**/*.o
+test/**/*.out
+
+# macOS
+.DS_Store
+._*
+
+# Éditeurs
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

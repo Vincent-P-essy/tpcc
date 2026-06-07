@@ -1,0 +1,13 @@
+/* Test: variables globales */
+int counter;
+
+void increment(void) {
+    counter = counter + 1;
+}
+
+int main(void) {
+    counter = 0;
+    increment();
+    increment();
+    return counter;
+}

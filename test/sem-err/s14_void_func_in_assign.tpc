@@ -1,0 +1,9 @@
+void doNothing(void) {
+    return;
+}
+
+int main(void) {
+    int x;
+    x = doNothing();
+    return 0;
+}

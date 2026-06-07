@@ -1,0 +1,8 @@
+/* Test: variables char */
+int main(void) {
+    char c;
+    c = 'A';
+    putchar(c);
+    putchar('\n');
+    return 0;
+}

@@ -1,0 +1,12 @@
+/* Test: opérateurs logiques */
+int main(void) {
+    int a;
+    int b;
+    int r;
+    a = 1;
+    b = 0;
+    r = a && b;
+    r = a || b;
+    r = !a;
+    return r;
+}

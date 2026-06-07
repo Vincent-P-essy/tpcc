@@ -1,0 +1,6 @@
+/* Erreur syntaxique: opérateur sans opérande droite */
+int main(void) {
+    int x;
+    x = 3 + ;
+    return x;
+}

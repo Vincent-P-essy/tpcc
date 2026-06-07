@@ -1,0 +1,14 @@
+struct Box {
+    int w;
+};
+
+void setBox(struct Box b) {
+    return;
+}
+
+int main(void) {
+    struct Box b;
+    b.w = 5;
+    setBox(b, 10);
+    return 0;
+}

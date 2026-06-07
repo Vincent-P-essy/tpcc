@@ -1,0 +1,10 @@
+/* Erreur sémantique: mauvais nombre d'arguments */
+int add(int a, int b) {
+    return a + b;
+}
+
+int main(void) {
+    int r;
+    r = add(1);
+    return r;
+}

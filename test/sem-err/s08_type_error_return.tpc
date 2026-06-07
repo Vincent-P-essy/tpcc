@@ -1,0 +1,9 @@
+/* Erreur sémantique: type de retour incompatible */
+char foo(void) {
+    struct Point p;
+    return p;
+}
+
+int main(void) {
+    return 0;
+}

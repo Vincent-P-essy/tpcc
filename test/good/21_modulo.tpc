@@ -1,0 +1,20 @@
+void printFizz(int n) {
+    if (n % 3 == 0 && n % 5 == 0) {
+        putint(0);
+    } else if (n % 3 == 0) {
+        putint(3);
+    } else if (n % 5 == 0) {
+        putint(5);
+    } else {
+        putint(n);
+    }
+    putchar(10);
+}
+
+int main(void) {
+    printFizz(1);
+    printFizz(3);
+    printFizz(5);
+    printFizz(15);
+    return 0;
+}

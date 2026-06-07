@@ -1,0 +1,9 @@
+/* Pas d'avertissement: char → int est implicite */
+int main(void) {
+    char c;
+    int n;
+    c = 'A';
+    n = c + 1;
+    putint(n);
+    return 0;
+}

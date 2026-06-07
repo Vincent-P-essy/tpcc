@@ -1,0 +1,11 @@
+char convert(int n) {
+    int r;
+    r = n * 2;
+    return r;
+}
+
+int main(void) {
+    char c;
+    c = convert(5);
+    return 0;
+}

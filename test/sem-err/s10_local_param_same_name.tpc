@@ -1,0 +1,9 @@
+/* Erreur sémantique: variable locale et paramètre même nom */
+int foo(int x) {
+    int x;
+    return x;
+}
+
+int main(void) {
+    return foo(1);
+}

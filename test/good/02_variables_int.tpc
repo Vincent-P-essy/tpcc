@@ -1,0 +1,8 @@
+/* Test: variables locales int */
+int main(void) {
+    int x;
+    int y;
+    x = 10;
+    y = 20;
+    return x + y;
+}

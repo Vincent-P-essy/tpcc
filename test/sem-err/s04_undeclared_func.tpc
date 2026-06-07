@@ -1,0 +1,6 @@
+/* Erreur sémantique: fonction non déclarée */
+int main(void) {
+    int r;
+    r = bar(1, 2);
+    return r;
+}

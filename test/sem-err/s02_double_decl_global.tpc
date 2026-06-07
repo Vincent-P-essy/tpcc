@@ -1,0 +1,7 @@
+/* Erreur sémantique: double déclaration globale */
+int x;
+int x;
+
+int main(void) {
+    return x;
+}

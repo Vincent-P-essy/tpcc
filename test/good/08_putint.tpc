@@ -1,0 +1,9 @@
+/* Test: putint / putchar */
+int main(void) {
+    int x;
+    x = 42;
+    putint(x);
+    putchar('A');
+    putchar('\n');
+    return 0;
+}

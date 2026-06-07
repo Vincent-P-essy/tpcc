@@ -1,0 +1,10 @@
+/* Avertissement: return int dans fonction char */
+char getA(void) {
+    return 65;
+}
+
+int main(void) {
+    putchar(getA());
+    putchar('\n');
+    return 0;
+}
