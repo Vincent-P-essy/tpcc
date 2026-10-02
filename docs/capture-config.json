@@ -1,0 +1,40 @@
+{
+  "jobs": [
+    {
+      "root": ".",
+      "label": "tpcc",
+      "caption": "Compilation of the compiler and the repository's valid, syntax-error, semantic-error and warning fixtures. Assembly checks use NASM locally.",
+      "setup": [
+        [
+          "sudo",
+          "apt-get",
+          "update"
+        ],
+        [
+          "sudo",
+          "apt-get",
+          "install",
+          "-y",
+          "flex",
+          "bison",
+          "nasm"
+        ],
+        [
+          "python",
+          "-c",
+          "from pathlib import Path; Path('bin').mkdir(exist_ok=True); Path('obj').mkdir(exist_ok=True)"
+        ]
+      ],
+      "commands": [
+        [
+          "make"
+        ],
+        [
+          "bash",
+          "run_tests.sh",
+          "--asm"
+        ]
+      ]
+    }
+  ]
+}
